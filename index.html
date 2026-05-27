@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8" />
+  <title>מכירה סינית יחי ראובן</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      direction: rtl;
+      background: linear-gradient(135deg, #eeecec, #ffffff);
+      color: #070707;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.815);
+      padding: 30px;
+      border-radius: 25px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      max-width: 950px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    h1 {
+      color: #050607;
+      margin-top: 0;
+      font-size: 22px;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 2px solid rgba(131, 120, 120, 0.815);
+      box-sizing: border-box;
+      font-size: 14px;
+      resize: vertical;
+    }
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      max-height: 200px;
+      overflow-y: auto;
+      background: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: center;
+      background: white;
+      white-space: nowrap;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #dee2e6;
+    }
+    th {
+      background-color: #1e3c72;
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+    tr:nth-child(even) {
+      background-color: #f1f3f5;
+    }
+    button {
+      font-family: sans-serif;
+      background-color: #39fa09;
+      color: rgb(173, 169, 169);
+      border: none;
+      padding: 12px 30px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 10px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin: 5px 10px 0 0;
+    }
+    button:hover:not(:disabled) {
+      background-color: #ff4747;
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    #winnerDisplay {
+      margin-top: 20px;
+      font-size: 30px;
+      font-weight: bold;
+      color: #ff6b6b;
+      min-height: 48px;
+      direction: rtl;
+      height: 48px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>הגרלה סינית<br>כולל יחי ראובן</h1>
+    <p>אפשר להקליד בתיבה למטה בהפרדת פסיקים. שורה ראשונה כותרות, שורות אחר כך עם נתונים.<br>
+	או להעתיק מאקסל</p>
+    <div class="setup-section" id="setupSection">
+      <textarea id="rawData" oninput="processData()" placeholder="הדבק כאן את הטבלה מהאקסל (שם, מוצר1, מוצר2...)"></textarea>
+      <div id="tablePreview" class="table-container"></div>
+    </div>
+
+    <button class="toggle-btn" onclick="toggleSetup()">הסתר/הצג אזור הזנת נתונים</button>
+
+    <div class="control-group" style="margin-top: 15px;">
+      <label for="productSelect" style="font-size: 18px; font-weight: bold;">בחר מוצר להגרלה:</label>
+      <select id="productSelect" onchange="updateStats()">
+        <option value="">-- טען נתונים תחילה --</option>
+      </select>
+      <button id="drawBtn" onclick="runLottery()" disabled>הפעל גורל!</button>
+      <button id="resetBtn" onclick="resetLottery()" disabled>הגרלה נוספת</button>
+    </div>
+
+    <div>
+      <div class="stats" id="productStats" style="margin-top: 10px;">נא להזין נתונים בתיבה למעלה.</div>
+    </div>
+
+    <div id="winnerDisplay"></div>
+  </div>
+
+  <script>
+    let db = { products: [], tickets: {} };
+
+    function processData() {
+      let input = document.getElementById("rawData").value.trim();
+      if (!input) {
+        clearData();
+        return;
+      }
+
+      let lines = input.split('\n');
+      if (lines.length < 1) {
+        clearData();
+        return;
+      }
+
+      let headers = lines[0].split(/\t/);
+      if (headers.length <= 1) headers = lines[0].split(',');
+
+      db.products = headers.slice(1).map(h => h.trim());
+      db.tickets = {};
+      db.products.forEach(p => db.tickets[p] = []);
+
+      let tableHtml = "<table><thead><tr><th>" + headers[0] + "</th>";
+      db.products.forEach(p => tableHtml += `<th>${p}</th>`);
+      tableHtml += "</tr></thead><tbody>";
+
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        let cells = lines[i].split(/\t/);
+        if (cells.length <= 1) cells = lines[i].split(',');
+
+        let studentName = cells[0].trim();
+        if (!studentName) continue;
+
+        tableHtml += `<tr><td><strong>${studentName}</strong></td>`;
+
+        for (let j = 1; j < headers.length; j++) {
+          let product = db.products[j - 1];
+          let val = cells[j] ? cells[j].trim() : "";
+          let count = parseInt(val);
+
+          tableHtml += `<td>${val}</td>`;
+
+          if (product && count > 0) {
+            for (let c = 0; c < count; c++) {
+              db.tickets[product].push(studentName);
+            }
+          }
+        }
+        tableHtml += "</tr>";
+      }
+      tableHtml += "</tbody></table>";
+      document.getElementById("tablePreview").innerHTML = tableHtml;
+
+      let select = document.getElementById("productSelect");
+      let currentSelection = select.value;
+      select.innerHTML = "";
+      db.products.forEach(p => {
+        let opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        if (p === currentSelection) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      document.getElementById("drawBtn").disabled = false;
+      document.getElementById("resetBtn").disabled = true;
+      updateStats();
+      document.getElementById("winnerDisplay").textContent = "";
+    }
+
+    function clearData() {
+      db.products = [];
+      db.tickets = {};
+      document.getElementById("tablePreview").innerHTML = "";
+      const select = document.getElementById("productSelect");
+      select.innerHTML = "<option value=''>-- טען נתונים תחילה --</option>";
+      document.getElementById("drawBtn").disabled = true;
+      document.getElementById("resetBtn").disabled = true;
+      document.getElementById("productStats").textContent = "נא להזין נתונים בתיבה למעלה.";
+      document.getElementById("winnerDisplay").textContent = "";
+    }
+
+    function updateStats() {
+      let product = document.getElementById("productSelect").value;
+      if (!product) {
+        document.getElementById("productStats").textContent = "";
+        return;
+      }
+      let totalTickets = db.tickets[product].length;
+      let uniqueStudents = new Set(db.tickets[product]).size;
+
+      document.getElementById("productStats").textContent =
+        `במוצר "${product}" משתתפים ${uniqueStudents} אברכים עם סך הכל ${totalTickets} כרטיסי הגרלה.`;
+    }
+
+    function secureRandomInt(max) {
+      const array = new Uint32Array(1);
+      window.crypto.getRandomValues(array);
+      return array[0] % max;
+    }
+
+    let lotteryIntervalId = null;
+
+// פונקציה לערבוב אקראי של מערך (Fisher-Yates Shuffle)
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = secureRandomInt(i + 1);
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function runLottery() {
+  let product = document.getElementById("productSelect").value;
+  let pool = db.tickets[product];
+
+  if (!pool || pool.length === 0) {
+    alert("אין כרטיסים שהוכנסו עבור מוצר זה!");
+    return;
+  }
+
+  // דרישה: ערבוב יסודי של הקופה 3 פעמים רצופות לפני בחירת הזוכה
+  for (let shuffleCycle = 0; shuffleCycle < 3; shuffleCycle++) {
+    shuffleArray(pool);
+  }
+
+  const winnerDisplay = document.getElementById("winnerDisplay");
+  let i = 0;
+  const maxCycles = 60; // הוגדל ל-60 כדי לתת אפקט מתח ארוך וטוב יותר עבור כמות גדולה של כרטיסים
+  const intervalTime = 60; // מהירות החלפה מעט מהירה יותר (60 מילישניות)
+
+  document.getElementById("drawBtn").disabled = true;
+  document.getElementById("resetBtn").disabled = true;
+
+  lotteryIntervalId = setInterval(() => {
+    // מציג שמות אקראיים מתוך הקופה המעורבבת
+    winnerDisplay.textContent = `הגרלה... ${pool[secureRandomInt(pool.length)]}`;
+    i++;
+    
+    if (i >= maxCycles) {
+      clearInterval(lotteryIntervalId);
+      // בחירת הזוכה הסופי מתוך הקופה שעברה ערבוב משולש
+      let winner = pool[secureRandomInt(pool.length)];
+      winnerDisplay.textContent = `והזוכה המאושר הוא: ${winner}`;
+      document.getElementById("resetBtn").disabled = false;
+    }
+  }, intervalTime);
+}
+
+    function resetLottery() {
+      if (lotteryIntervalId) {
+        clearInterval(lotteryIntervalId);
+      }
+      document.getElementById("winnerDisplay").textContent = "";
+      document.getElementById("drawBtn").disabled = false;
+      document.getElementById("resetBtn").disabled = true;
+    }
+
+    function toggleSetup() {
+      let section = document.getElementById("setupSection");
+      section.style.display = section.style.display === "none" ? "block" : "none";
+    }
+  </script>
+</body>
+</html>
