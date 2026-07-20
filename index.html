@@ -110,8 +110,9 @@
 <body>
   <div class="container">
     <h1>הגרלה סינית<br>כולל יחי ראובן</h1>
-    <p>אפשר להקליד בתיבה למטה בהפרדת פסיקים. שורה ראשונה כותרות, שורות אחר כך עם נתונים.<br>
+    <p>אפשר לעלות קובץ טקסט או CSV או להקליד בתיבה למטה בהפרדת פסיקים. שורה ראשונה כותרות, שורות אחר כך עם נתונים.<br>
 	או להעתיק מאקסל</p>
+	  <input type="file" id="fileInput" accept=".txt,.csv" onchange="loadFileInput(event)" style="margin-bottom: 10px; block-size: auto;" />
     <div class="setup-section" id="setupSection">
       <textarea id="rawData" oninput="processData()" placeholder="הדבק כאן את הטבלה מהאקסל (שם, מוצר1, מוצר2...)"></textarea>
       <div id="tablePreview" class="table-container"></div>
@@ -137,7 +138,20 @@
 
   <script>
     let db = { products: [], tickets: {} };
+	function loadFileInput(event) {
+  const file = event.target.files[0];
+  if (!file) return;
 
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // מכניס את תוכן הקובץ לתוך תיבת הטקסט ומפעיל את העיבוד הקיים
+    document.getElementById("rawData").value = e.target.result;
+    processData();
+  };
+  
+  // קריאת הקובץ כטקסט (תומך בעברית)
+  reader.readAsText(file, 'UTF-8');
+}
     function processData() {
       let input = document.getElementById("rawData").value.trim();
       if (!input) {
